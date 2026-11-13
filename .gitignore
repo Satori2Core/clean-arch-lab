@@ -1,0 +1,11 @@
+# 忽略本地临时文件
+
+# 编译产物
+*.exe
+*.test
+*.out
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
