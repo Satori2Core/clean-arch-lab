@@ -72,7 +72,7 @@ func ValidateID(id string) (string, error) {
 	if id == "" {
 		return "", apperr.New(apperr.CodeInvalidArgument, "id is required")
 	}
-	if len(id) > MaxTaskIDLength {
+	if utf8.RuneCountInString(id) > MaxTaskIDLength {
 		return "", apperr.New(apperr.CodeInvalidArgument, "id too long")
 	}
 	return id, nil

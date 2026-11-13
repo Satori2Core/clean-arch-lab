@@ -129,8 +129,13 @@ func TestRepositoryDeleteSuccess(t *testing.T) {
 	if err := repo.Delete(context.Background(), "task-1"); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
-	if _, err := repo.FindByID(context.Background(), "task-1"); err == nil {
+	_, err := repo.FindByID(context.Background(), "task-1")
+	if err == nil {
 		t.Fatal("FindByID() error = nil, want NOT_FOUND")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeNotFound {
+		t.Fatalf("err = %v, want NOT_FOUND", err)
 	}
 }
 

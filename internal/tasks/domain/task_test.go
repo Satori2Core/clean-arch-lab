@@ -128,3 +128,19 @@ func TestValidateIDBoundaryMaxLength(t *testing.T) {
 		t.Fatalf("ValidateID() = %q, want %q", got, borderID)
 	}
 }
+
+// TestValidateIDMultiByteBoundary 验证多字节 ID 按字符数（而非字节数）计算长度。
+func TestValidateIDMultiByteBoundary(t *testing.T) {
+	borderID := strings.Repeat("任", domain.MaxTaskIDLength)
+	got, err := domain.ValidateID(borderID)
+	if err != nil {
+		t.Fatalf("ValidateID() error = %v, want nil", err)
+	}
+	if got != borderID {
+		t.Fatalf("ValidateID() = %q, want %q", got, borderID)
+	}
+
+	tooLong := strings.Repeat("任", domain.MaxTaskIDLength+1)
+	_, err = domain.ValidateID(tooLong)
+	assertInvalidArgument(t, err)
+}

@@ -24,11 +24,12 @@ func assertInvalidArgument(t *testing.T, err error) {
 	}
 }
 
-// fakeRepo 是测试用内存仓储，可注入 Save/List/Delete 错误。
+// fakeRepo 是测试用内存仓储，可注入 Save/List/Find/Delete 错误。
 type fakeRepo struct {
 	tasks     []domain.Task
 	saveErr   error
 	listErr   error
+	findErr   error
 	deleteErr error
 }
 
@@ -47,8 +48,11 @@ func (f *fakeRepo) Save(_ context.Context, task domain.Task) error {
 	return nil
 }
 
-// FindByID 按 ID 查找任务。
+// FindByID 按 ID 查找任务；注入 findErr 时返回错误。
 func (f *fakeRepo) FindByID(_ context.Context, id string) (domain.Task, error) {
+	if f.findErr != nil {
+		return domain.Task{}, f.findErr
+	}
 	for _, task := range f.tasks {
 		if task.ID == id {
 			return task, nil
@@ -368,6 +372,21 @@ func TestDeleteRepoError(t *testing.T) {
 	err := svc.Delete(context.Background(), "any")
 	if err == nil {
 		t.Fatal("Delete() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {
+		t.Fatalf("err = %v, want INTERNAL", err)
+	}
+}
+
+// TestMarkDoneFindError 验证 MarkDone 仓储 FindByID 失败时返回错误且业务码为 INTERNAL。
+func TestMarkDoneFindError(t *testing.T) {
+	svc, repo := newTestService()
+	repo.findErr = errors.New("db down")
+
+	_, err := svc.MarkDone(context.Background(), "task-1")
+	if err == nil {
+		t.Fatal("MarkDone() error = nil, want error")
 	}
 	var ae *apperr.Error
 	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {

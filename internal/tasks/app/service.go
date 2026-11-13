@@ -46,7 +46,7 @@ type CreateTask struct {
 func (s *Service) Create(ctx context.Context, cmd CreateTask) (domain.Task, error) {
 	title, err := domain.ValidateTitle(cmd.Title)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, apperr.Wrapf(err, "create task: validate title")
 	}
 	id, err := s.ids.NewID(ctx)
 	if err != nil {
@@ -78,7 +78,7 @@ func (s *Service) List(ctx context.Context) ([]domain.Task, error) {
 func (s *Service) MarkDone(ctx context.Context, id string) (domain.Task, error) {
 	id, err := domain.ValidateID(id)
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, apperr.Wrapf(err, "mark done: validate id")
 	}
 	task, err := s.repo.FindByID(ctx, id)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *Service) MarkDone(ctx context.Context, id string) (domain.Task, error) 
 func (s *Service) Delete(ctx context.Context, id string) error {
 	id, err := domain.ValidateID(id)
 	if err != nil {
-		return err
+		return apperr.Wrapf(err, "delete task: validate id")
 	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return apperr.Wrapf(err, "delete task failed, id=%s", id)

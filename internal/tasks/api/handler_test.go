@@ -16,6 +16,9 @@ import (
 	"github.com/Satori2Core/clean-arch-lab/internal/tasks/infra/memory"
 )
 
+// oversizedRequestBodyBytes 是测试用超限请求体大小（对应 api 层 1MB 上限 +1）。
+const oversizedRequestBodyBytes = 1<<20 + 1
+
 // newTestHandler 构造基于内存仓储的 HTTP Handler。
 func newTestHandler() *api.Handler {
 	repo := memory.NewRepository()
@@ -258,7 +261,7 @@ func TestCreateTaskHTTPC01BoundaryMaxLength(t *testing.T) {
 // TestCreateTaskHTTPRequestBodyTooLarge 覆盖请求体超过上限返回 400 与 INVALID_ARGUMENT。
 func TestCreateTaskHTTPRequestBodyTooLarge(t *testing.T) {
 	mux := newTestMux(newTestHandler())
-	hugeBody := `{"title":"` + strings.Repeat("a", 1<<20+1) + `"}`
+	hugeBody := `{"title":"` + strings.Repeat("a", oversizedRequestBodyBytes) + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewBufferString(hugeBody))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
@@ -336,8 +339,8 @@ func TestWithRequestIDSetsResponseHeaderWhenMissing(t *testing.T) {
 	}
 }
 
-// TestMarkTaskDoneHTTP 覆盖标记任务完成返回 200 且 done=true。
-func TestMarkTaskDoneHTTP(t *testing.T) {
+// TestMarkTaskDoneHTTPC07 覆盖标记任务完成返回 200 且 done=true。
+func TestMarkTaskDoneHTTPC07(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewBufferString(`{"title":"a"}`))
 	createRec := httptest.NewRecorder()
@@ -368,8 +371,8 @@ func TestMarkTaskDoneHTTP(t *testing.T) {
 	}
 }
 
-// TestMarkTaskDoneHTTPNotFound 覆盖标记不存在的任务返回 404 与 NOT_FOUND。
-func TestMarkTaskDoneHTTPNotFound(t *testing.T) {
+// TestMarkTaskDoneHTTPC08 覆盖标记不存在的任务返回 404 与 NOT_FOUND。
+func TestMarkTaskDoneHTTPC08(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/missing/done", nil)
 	rec := httptest.NewRecorder()
@@ -387,8 +390,8 @@ func TestMarkTaskDoneHTTPNotFound(t *testing.T) {
 	}
 }
 
-// TestDeleteTaskHTTP 覆盖删除任务成功返回 204。
-func TestDeleteTaskHTTP(t *testing.T) {
+// TestDeleteTaskHTTPC09 覆盖删除任务成功返回 204。
+func TestDeleteTaskHTTPC09(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewBufferString(`{"title":"a"}`))
 	createRec := httptest.NewRecorder()
@@ -410,8 +413,8 @@ func TestDeleteTaskHTTP(t *testing.T) {
 	}
 }
 
-// TestDeleteTaskHTTPNotFound 覆盖删除不存在的任务返回 404 与 NOT_FOUND。
-func TestDeleteTaskHTTPNotFound(t *testing.T) {
+// TestDeleteTaskHTTPC10 覆盖删除不存在的任务返回 404 与 NOT_FOUND。
+func TestDeleteTaskHTTPC10(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/missing", nil)
 	rec := httptest.NewRecorder()
@@ -426,5 +429,43 @@ func TestDeleteTaskHTTPNotFound(t *testing.T) {
 	}
 	if resp["code"] != apperr.CodeNotFound {
 		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
+	}
+}
+
+// TestMarkTaskDoneHTTPInvalidID 覆盖非法 ID 返回 400 与 INVALID_ARGUMENT。
+func TestMarkTaskDoneHTTPInvalidID(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/%20%20/done", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeInvalidArgument {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeInvalidArgument)
+	}
+}
+
+// TestDeleteTaskHTTPInvalidID 覆盖非法 ID 返回 400 与 INVALID_ARGUMENT。
+func TestDeleteTaskHTTPInvalidID(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/%20%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeInvalidArgument {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeInvalidArgument)
 	}
 }

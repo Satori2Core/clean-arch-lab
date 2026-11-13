@@ -148,11 +148,14 @@ func TestE2ETaskC07MarkDone(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 	var resp struct {
-		Done bool `json:"done"`
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		Done      bool   `json:"done"`
+		CreatedAt string `json:"created_at"`
 	}
 	env.Decode(t, rec, &resp)
-	if !resp.Done {
-		t.Fatal("done = false, want true")
+	if resp.ID != created.ID || resp.Title != "a" || !resp.Done || resp.CreatedAt == "" {
+		t.Fatalf("resp = %+v", resp)
 	}
 }
 
@@ -186,6 +189,12 @@ func TestE2ETaskC09DeleteTask(t *testing.T) {
 	rec := env.DoJSON(t, http.MethodDelete, tasksBase+"/"+created.ID, nil)
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+
+	// 验证已删除：再次删除同一 ID 应返回 404。
+	again := env.DoJSON(t, http.MethodDelete, tasksBase+"/"+created.ID, nil)
+	if again.Code != http.StatusNotFound {
+		t.Fatalf("again status = %d, want 404; body=%s", again.Code, again.Body.String())
 	}
 }
 
