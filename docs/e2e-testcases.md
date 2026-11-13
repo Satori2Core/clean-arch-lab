@@ -10,3 +10,5 @@
 | E2E-TASK-C04 | 创建超长标题 | 400，INVALID_ARGUMENT |
 | E2E-TASK-C05 | 空列表 | 200，返回空数组 `[]` |
 | E2E-TASK-C06 | 健康检查 | 200，返回 ok |
+| E2E-TASK-C07 | 标记任务完成 | 200，done=true |
+| E2E-TASK-C08 | 标记不存在的任务 | 404，NOT_FOUND |

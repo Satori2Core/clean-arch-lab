@@ -73,3 +73,19 @@ func (s *Service) List(ctx context.Context) ([]domain.Task, error) {
 	}
 	return tasks, nil
 }
+
+// MarkDone 标记任务为已完成：校验 ID → 按 ID 查询 → 领域置为完成 → 持久化。
+func (s *Service) MarkDone(ctx context.Context, id string) (domain.Task, error) {
+	if err := domain.ValidateID(id); err != nil {
+		return domain.Task{}, err
+	}
+	task, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return domain.Task{}, apperr.Wrapf(err, "find task failed, id=%s", id)
+	}
+	task.MarkDone()
+	if err := s.repo.Save(ctx, task); err != nil {
+		return domain.Task{}, apperr.Wrapf(err, "save task failed")
+	}
+	return task, nil
+}

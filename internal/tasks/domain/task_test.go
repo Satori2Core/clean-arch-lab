@@ -92,3 +92,23 @@ func TestMarkDone(t *testing.T) {
 		t.Fatal("MarkDone() 后 Done 仍为 false")
 	}
 }
+
+// TestValidateIDValid 验证合法任务 ID 通过校验。
+func TestValidateIDValid(t *testing.T) {
+	if err := domain.ValidateID("task-1"); err != nil {
+		t.Fatalf("ValidateID() error = %v, want nil", err)
+	}
+}
+
+// TestValidateIDEmpty 验证空任务 ID 返回 INVALID_ARGUMENT。
+func TestValidateIDEmpty(t *testing.T) {
+	err := domain.ValidateID("  ")
+	assertInvalidArgument(t, err)
+}
+
+// TestValidateIDTooLong 验证超长任务 ID 返回 INVALID_ARGUMENT。
+func TestValidateIDTooLong(t *testing.T) {
+	longID := strings.Repeat("a", domain.MaxTaskIDLength+1)
+	err := domain.ValidateID(longID)
+	assertInvalidArgument(t, err)
+}

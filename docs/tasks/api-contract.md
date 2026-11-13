@@ -9,6 +9,7 @@
 | GET | `/healthz` | 健康检查 |
 | POST | `/api/v1/tasks` | 创建任务 |
 | GET | `/api/v1/tasks` | 查询任务列表 |
+| POST | `/api/v1/tasks/{id}/done` | 标记任务完成 |
 
 ## GET /healthz
 
@@ -66,3 +67,27 @@ ok
 ```
 
 空列表返回 `[]`。
+
+## POST /api/v1/tasks/{id}/done
+
+### 请求
+
+无请求体。`id` 为任务 ID。
+
+### 成功响应（200）
+
+```json
+{
+  "id": "task-1",
+  "title": "买牛奶",
+  "done": true,
+  "created_at": "2026-01-15T00:00:00+08:00"
+}
+```
+
+### 错误
+
+| HTTP | code | 场景 |
+|------|------|------|
+| 404 | `NOT_FOUND` | 任务不存在 |
+| 500 | `INTERNAL` | 内部错误 |

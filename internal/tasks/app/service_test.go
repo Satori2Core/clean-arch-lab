@@ -19,10 +19,16 @@ type fakeRepo struct {
 	listErr error
 }
 
-// Save 保存任务；注入 saveErr 时返回错误。
+// Save 保存任务（按 ID 覆盖）；注入 saveErr 时返回错误。
 func (f *fakeRepo) Save(_ context.Context, task domain.Task) error {
 	if f.saveErr != nil {
 		return f.saveErr
+	}
+	for i := range f.tasks {
+		if f.tasks[i].ID == task.ID {
+			f.tasks[i] = task
+			return nil
+		}
 	}
 	f.tasks = append(f.tasks, task)
 	return nil
@@ -224,4 +230,50 @@ func TestNewServiceNilIDsPanics(t *testing.T) {
 		}
 	}()
 	_ = app.NewService(app.ServiceDeps{Repo: &fakeRepo{}, IDs: nil}) // 预期 panic，返回值不可达
+}
+
+// TestMarkDoneSuccess 验证标记任务完成后 Done 变为 true。
+func TestMarkDoneSuccess(t *testing.T) {
+	svc, _ := newTestService()
+	created, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	done, err := svc.MarkDone(context.Background(), created.ID)
+	if err != nil {
+		t.Fatalf("MarkDone() error = %v", err)
+	}
+	if !done.Done {
+		t.Fatal("MarkDone() 后 Done 仍为 false")
+	}
+}
+
+// TestMarkDoneNotFound 验证标记不存在的任务返回 NOT_FOUND。
+func TestMarkDoneNotFound(t *testing.T) {
+	svc, _ := newTestService()
+
+	_, err := svc.MarkDone(context.Background(), "missing")
+	if err == nil {
+		t.Fatal("MarkDone() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeNotFound {
+		t.Fatalf("err = %v, want NOT_FOUND", err)
+	}
+}
+
+// TestMarkDoneSaveError 验证标记完成时仓储 Save 失败返回错误。
+func TestMarkDoneSaveError(t *testing.T) {
+	svc, repo := newTestService()
+	created, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	repo.saveErr = errors.New("db down")
+
+	_, err = svc.MarkDone(context.Background(), created.ID)
+	if err == nil {
+		t.Fatal("MarkDone() error = nil, want error")
+	}
 }

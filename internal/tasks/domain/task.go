@@ -13,8 +13,12 @@ import (
 // MaxTaskTitleLength 是任务标题最大长度（按字符数）。
 const (
 	MaxTaskTitleLength = 200
+	// MaxTaskIDLength 是任务 ID 最大长度（内部生成器产生，对外接口校验用）。
+	MaxTaskIDLength = 64
 	// TaskIDPrefix 是任务 ID 的统一前缀，供内存 ID 生成器使用。
 	TaskIDPrefix = "task-"
+	// TaskNotFoundMessage 是任务不存在的稳定用户文案。
+	TaskNotFoundMessage = "task not found"
 )
 
 // Task 是个人任务的领域实体。
@@ -60,4 +64,16 @@ func ValidateTitle(title string) (string, error) {
 // MarkDone 标记任务完成。
 func (t *Task) MarkDone() {
 	t.Done = true
+}
+
+// ValidateID 校验外部传入的任务 ID：非空且长度受限。
+func ValidateID(id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return apperr.New(apperr.CodeInvalidArgument, "id is required")
+	}
+	if len(id) > MaxTaskIDLength {
+		return apperr.New(apperr.CodeInvalidArgument, "id too long")
+	}
+	return nil
 }

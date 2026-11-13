@@ -23,6 +23,8 @@ const (
 	routeCreateTask = "POST /api/v1/tasks"
 	// routeListTasks 是查询任务列表路由。
 	routeListTasks = "GET /api/v1/tasks"
+	// routeMarkTaskDone 是标记任务完成路由。
+	routeMarkTaskDone = "POST /api/v1/tasks/{id}/done"
 
 	// maxRequestBodyBytes 是创建任务请求体大小上限（1MB）。
 	maxRequestBodyBytes = 1 << 20
@@ -106,6 +108,7 @@ func NewHandler(svc *app.Service) *Handler {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(routeCreateTask, h.create)
 	mux.HandleFunc(routeListTasks, h.list)
+	mux.HandleFunc(routeMarkTaskDone, h.markDone)
 }
 
 // createTaskRequest 是创建任务请求体。
@@ -166,6 +169,17 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		resp = append(resp, toResponse(task))
 	}
 	writeJSON(w, r, http.StatusOK, resp)
+}
+
+// markDone 处理标记任务完成请求。
+func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	task, err := h.svc.MarkDone(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err, statusFromErr(err))
+		return
+	}
+	writeJSON(w, r, http.StatusOK, toResponse(task))
 }
 
 // toResponse 将领域 Task 转换为 HTTP 响应结构。

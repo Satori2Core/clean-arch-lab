@@ -11,10 +11,15 @@ import (
 	"github.com/Satori2Core/clean-arch-lab/internal/tasks/e2e/harness"
 )
 
+const (
+	tasksBase   = "/api/v1/tasks"
+	healthzPath = "/healthz"
+)
+
 // TestE2ETaskC01CreateTask 覆盖 C01：创建任务成功返回 201 与 id/title。
 func TestE2ETaskC01CreateTask(t *testing.T) {
 	env := harness.NewEnv()
-	rec := env.DoJSON(t, http.MethodPost, "/api/v1/tasks", map[string]any{"title": "买牛奶"})
+	rec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": "买牛奶"})
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201; body=%s", rec.Code, rec.Body.String())
@@ -40,7 +45,7 @@ func TestE2ETaskC01CreateTask(t *testing.T) {
 // TestE2ETaskC02ListTasks 覆盖 C02：创建任务后列表返回 200 且包含该任务。
 func TestE2ETaskC02ListTasks(t *testing.T) {
 	env := harness.NewEnv()
-	createRec := env.DoJSON(t, http.MethodPost, "/api/v1/tasks", map[string]any{"title": "a"})
+	createRec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": "a"})
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, want 201; body=%s", createRec.Code, createRec.Body.String())
 	}
@@ -50,7 +55,7 @@ func TestE2ETaskC02ListTasks(t *testing.T) {
 	}
 	env.Decode(t, createRec, &created)
 
-	rec := env.DoJSON(t, http.MethodGet, "/api/v1/tasks", nil)
+	rec := env.DoJSON(t, http.MethodGet, tasksBase, nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
@@ -70,7 +75,7 @@ func TestE2ETaskC02ListTasks(t *testing.T) {
 // TestE2ETaskC03CreateEmptyTitle 覆盖 C03：空标题创建返回 400 与 INVALID_ARGUMENT。
 func TestE2ETaskC03CreateEmptyTitle(t *testing.T) {
 	env := harness.NewEnv()
-	rec := env.DoJSON(t, http.MethodPost, "/api/v1/tasks", map[string]any{"title": ""})
+	rec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": ""})
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
@@ -86,7 +91,7 @@ func TestE2ETaskC03CreateEmptyTitle(t *testing.T) {
 func TestE2ETaskC04CreateTooLongTitle(t *testing.T) {
 	env := harness.NewEnv()
 	longTitle := strings.Repeat("长", domain.MaxTaskTitleLength+1)
-	rec := env.DoJSON(t, http.MethodPost, "/api/v1/tasks", map[string]any{"title": longTitle})
+	rec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": longTitle})
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
@@ -101,7 +106,7 @@ func TestE2ETaskC04CreateTooLongTitle(t *testing.T) {
 // TestE2ETaskC05ListEmpty 覆盖 C05：空列表返回 200 且响应体为空数组。
 func TestE2ETaskC05ListEmpty(t *testing.T) {
 	env := harness.NewEnv()
-	rec := env.DoJSON(t, http.MethodGet, "/api/v1/tasks", nil)
+	rec := env.DoJSON(t, http.MethodGet, tasksBase, nil)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
@@ -116,12 +121,52 @@ func TestE2ETaskC05ListEmpty(t *testing.T) {
 // TestE2ETaskC06HealthCheck 覆盖 C06：健康检查返回 200 与 ok。
 func TestE2ETaskC06HealthCheck(t *testing.T) {
 	env := harness.NewEnv()
-	rec := env.DoJSON(t, http.MethodGet, "/healthz", nil)
+	rec := env.DoJSON(t, http.MethodGet, healthzPath, nil)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 	if rec.Body.String() != "ok" {
 		t.Fatalf("body = %q, want ok", rec.Body.String())
+	}
+}
+
+// TestE2ETaskC07MarkDone 覆盖 C07：标记任务完成返回 200 且 done=true。
+func TestE2ETaskC07MarkDone(t *testing.T) {
+	env := harness.NewEnv()
+	createRec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": "a"})
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201; body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	env.Decode(t, createRec, &created)
+
+	rec := env.DoJSON(t, http.MethodPost, tasksBase+"/"+created.ID+"/done", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Done bool `json:"done"`
+	}
+	env.Decode(t, rec, &resp)
+	if !resp.Done {
+		t.Fatal("done = false, want true")
+	}
+}
+
+// TestE2ETaskC08MarkDoneNotFound 覆盖 C08：标记不存在的任务返回 404 与 NOT_FOUND。
+func TestE2ETaskC08MarkDoneNotFound(t *testing.T) {
+	env := harness.NewEnv()
+	rec := env.DoJSON(t, http.MethodPost, tasksBase+"/missing/done", nil)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	env.Decode(t, rec, &resp)
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
 	}
 }
