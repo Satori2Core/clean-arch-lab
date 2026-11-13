@@ -38,7 +38,7 @@ func (r *Repository) FindByID(_ context.Context, id string) (domain.Task, error)
 	defer r.mu.RUnlock()
 	task, ok := r.tasks[id]
 	if !ok {
-		return domain.Task{}, apperr.New(apperr.CodeNotFound, "task not found")
+		return domain.Task{}, apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
 	}
 	return task, nil
 }

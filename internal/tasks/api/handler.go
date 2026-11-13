@@ -32,8 +32,8 @@ const (
 	internalErrorMessage = "internal error"
 	// requestIDPlaceholder 是 request id 缺失或生成失败时的占位符。
 	requestIDPlaceholder = "-"
-	// maxRequestIDLength 是外部传入 request id 的最大长度。
-	maxRequestIDLength = 64
+	// maxRequestIDLength 是外部传入 request id 的最大长度（与领域任务 ID 上限一致）。
+	maxRequestIDLength = domain.MaxTaskIDLength
 	// requestIDRandomBytes 是随机 request id 的字节数。
 	requestIDRandomBytes = 8
 	// requestIDHeader 是 request id 的 HTTP 头名称。

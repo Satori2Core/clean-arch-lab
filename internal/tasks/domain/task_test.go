@@ -93,22 +93,38 @@ func TestMarkDone(t *testing.T) {
 	}
 }
 
-// TestValidateIDValid 验证合法任务 ID 通过校验。
+// TestValidateIDValid 验证合法任务 ID 通过校验并返回规范化 ID。
 func TestValidateIDValid(t *testing.T) {
-	if err := domain.ValidateID("task-1"); err != nil {
+	got, err := domain.ValidateID(" task-1 ")
+	if err != nil {
 		t.Fatalf("ValidateID() error = %v, want nil", err)
+	}
+	if got != "task-1" {
+		t.Fatalf("ValidateID() = %q, want task-1", got)
 	}
 }
 
 // TestValidateIDEmpty 验证空任务 ID 返回 INVALID_ARGUMENT。
 func TestValidateIDEmpty(t *testing.T) {
-	err := domain.ValidateID("  ")
+	_, err := domain.ValidateID("  ")
 	assertInvalidArgument(t, err)
 }
 
 // TestValidateIDTooLong 验证超长任务 ID 返回 INVALID_ARGUMENT。
 func TestValidateIDTooLong(t *testing.T) {
 	longID := strings.Repeat("a", domain.MaxTaskIDLength+1)
-	err := domain.ValidateID(longID)
+	_, err := domain.ValidateID(longID)
 	assertInvalidArgument(t, err)
+}
+
+// TestValidateIDBoundaryMaxLength 验证 ID 长度恰好等于 MaxTaskIDLength 时通过。
+func TestValidateIDBoundaryMaxLength(t *testing.T) {
+	borderID := strings.Repeat("a", domain.MaxTaskIDLength)
+	got, err := domain.ValidateID(borderID)
+	if err != nil {
+		t.Fatalf("ValidateID() error = %v, want nil", err)
+	}
+	if got != borderID {
+		t.Fatalf("ValidateID() = %q, want %q", got, borderID)
+	}
 }

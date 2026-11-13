@@ -12,6 +12,18 @@ import (
 	"github.com/Satori2Core/clean-arch-lab/internal/tasks/domain"
 )
 
+// assertInvalidArgument 断言错误非 nil 且业务码为 INVALID_ARGUMENT。
+func assertInvalidArgument(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Fatal("err = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeInvalidArgument {
+		t.Fatalf("err = %v, want INVALID_ARGUMENT", err)
+	}
+}
+
 // fakeRepo 是测试用内存仓储，可注入 Save/List 错误。
 type fakeRepo struct {
 	tasks   []domain.Task
@@ -41,7 +53,7 @@ func (f *fakeRepo) FindByID(_ context.Context, id string) (domain.Task, error) {
 			return task, nil
 		}
 	}
-	return domain.Task{}, apperr.New(apperr.CodeNotFound, "task not found")
+	return domain.Task{}, apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
 }
 
 // List 返回任务列表；注入 listErr 时返回错误。
@@ -263,7 +275,19 @@ func TestMarkDoneNotFound(t *testing.T) {
 	}
 }
 
-// TestMarkDoneSaveError 验证标记完成时仓储 Save 失败返回错误。
+// TestMarkDoneRejectsInvalidID 验证空 ID/超长 ID 返回 INVALID_ARGUMENT。
+func TestMarkDoneRejectsInvalidID(t *testing.T) {
+	svc, _ := newTestService()
+
+	_, err := svc.MarkDone(context.Background(), "  ")
+	assertInvalidArgument(t, err)
+
+	longID := strings.Repeat("a", domain.MaxTaskIDLength+1)
+	_, err = svc.MarkDone(context.Background(), longID)
+	assertInvalidArgument(t, err)
+}
+
+// TestMarkDoneSaveError 验证标记完成时仓储 Save 失败返回错误且业务码为 INTERNAL。
 func TestMarkDoneSaveError(t *testing.T) {
 	svc, repo := newTestService()
 	created, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
@@ -275,5 +299,9 @@ func TestMarkDoneSaveError(t *testing.T) {
 	_, err = svc.MarkDone(context.Background(), created.ID)
 	if err == nil {
 		t.Fatal("MarkDone() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {
+		t.Fatalf("err = %v, want INTERNAL", err)
 	}
 }

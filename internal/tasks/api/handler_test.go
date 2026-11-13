@@ -41,7 +41,7 @@ func (failingRepo) Save(context.Context, domain.Task) error {
 
 // FindByID 返回未找到。
 func (failingRepo) FindByID(context.Context, string) (domain.Task, error) {
-	return domain.Task{}, apperr.New(apperr.CodeNotFound, "task not found")
+	return domain.Task{}, apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
 }
 
 // List 返回带敏感细节的内部错误。
@@ -301,6 +301,22 @@ func TestWithRequestIDInvalidHeaderGeneratesNew(t *testing.T) {
 	}
 }
 
+// TestWithRequestIDTooLongHeaderGeneratesNew 验证超长 X-Request-ID 会被替换为新生成 ID。
+func TestWithRequestIDTooLongHeaderGeneratesNew(t *testing.T) {
+	var handler http.Handler = api.WithRequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", strings.Repeat("a", domain.MaxTaskIDLength+1))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	got := rec.Header().Get("X-Request-ID")
+	if len(got) > domain.MaxTaskIDLength || got == "" {
+		t.Fatalf("X-Request-ID = %q, want 新的合法 ID", got)
+	}
+}
+
 // TestWithRequestIDSetsResponseHeaderWhenMissing 验证缺失请求头时也会生成并回写 request id。
 func TestWithRequestIDSetsResponseHeaderWhenMissing(t *testing.T) {
 	var handler http.Handler = api.WithRequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -347,7 +363,7 @@ func TestMarkTaskDoneHTTP(t *testing.T) {
 	}
 }
 
-// TestMarkTaskDoneHTTPNotFound 覆盖标记不存在的任务返回 404。
+// TestMarkTaskDoneHTTPNotFound 覆盖标记不存在的任务返回 404 与 NOT_FOUND。
 func TestMarkTaskDoneHTTPNotFound(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/missing/done", nil)
@@ -356,5 +372,12 @@ func TestMarkTaskDoneHTTPNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
 	}
 }

@@ -66,14 +66,14 @@ func (t *Task) MarkDone() {
 	t.Done = true
 }
 
-// ValidateID 校验外部传入的任务 ID：非空且长度受限。
-func ValidateID(id string) error {
+// ValidateID 校验并规范化外部传入的任务 ID；返回 TrimSpace 后的 ID。
+func ValidateID(id string) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return apperr.New(apperr.CodeInvalidArgument, "id is required")
+		return "", apperr.New(apperr.CodeInvalidArgument, "id is required")
 	}
 	if len(id) > MaxTaskIDLength {
-		return apperr.New(apperr.CodeInvalidArgument, "id too long")
+		return "", apperr.New(apperr.CodeInvalidArgument, "id too long")
 	}
-	return nil
+	return id, nil
 }
