@@ -201,6 +201,19 @@ func TestCreateTaskIDGenError(t *testing.T) {
 	}
 }
 
+// emptyIDGen 是测试用 ID 生成器，返回空 ID 以触发领域构造失败。
+type emptyIDGen struct{}
+
+// NewID 返回空字符串与 nil 错误。
+func (emptyIDGen) NewID(context.Context) (string, error) { return "", nil }
+
+// TestCreateTaskNewTaskError 验证领域构造失败（空 ID）返回 INVALID_ARGUMENT。
+func TestCreateTaskNewTaskError(t *testing.T) {
+	svc := app.NewService(app.ServiceDeps{Repo: &fakeRepo{}, IDs: emptyIDGen{}})
+	_, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
+	assertInvalidArgument(t, err)
+}
+
 // TestCreateTaskSaveError 验证仓储保存失败时返回错误且业务码为 INTERNAL。
 func TestCreateTaskSaveError(t *testing.T) {
 	repo := &fakeRepo{saveErr: errors.New("db down")}

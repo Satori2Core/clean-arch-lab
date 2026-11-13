@@ -35,15 +35,20 @@ func newTestMux(h *api.Handler) *http.ServeMux {
 }
 
 // failingRepo 是测试用失败仓储，用于验证 5xx 不泄露内部错误细节。
-type failingRepo struct{}
+type failingRepo struct {
+	findErr error
+}
 
 // Save 返回带敏感细节的内部错误。
 func (failingRepo) Save(context.Context, domain.Task) error {
 	return apperr.New(apperr.CodeInternal, "secret db detail")
 }
 
-// FindByID 返回未找到。
-func (failingRepo) FindByID(context.Context, string) (domain.Task, error) {
+// FindByID 返回未找到；注入 findErr 时返回内部错误。
+func (f failingRepo) FindByID(context.Context, string) (domain.Task, error) {
+	if f.findErr != nil {
+		return domain.Task{}, f.findErr
+	}
 	return domain.Task{}, apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
 }
 
@@ -538,5 +543,67 @@ func TestGetTaskHTTPInvalidID(t *testing.T) {
 	}
 	if resp["code"] != apperr.CodeInvalidArgument {
 		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeInvalidArgument)
+	}
+}
+
+// TestGetTaskHTTPInternalErrorHidesDetail 覆盖 GetByID 5xx 不泄露内部错误细节。
+func TestGetTaskHTTPInternalErrorHidesDetail(t *testing.T) {
+	repo := failingRepo{findErr: apperr.New(apperr.CodeInternal, "secret db detail")}
+	svc := app.NewService(app.ServiceDeps{Repo: repo, IDs: memory.NewIDGenerator(domain.TaskIDPrefix)})
+	mux := newTestMux(api.NewHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/task-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret db detail") {
+		t.Fatalf("5xx 响应不应泄露内部错误细节: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "internal error") {
+		t.Fatalf("5xx 响应应返回通用文案: %s", rec.Body.String())
+	}
+}
+
+// TestMarkTaskDoneHTTPInternalErrorHidesDetail 覆盖 MarkDone 5xx 不泄露内部错误细节。
+func TestMarkTaskDoneHTTPInternalErrorHidesDetail(t *testing.T) {
+	repo := failingRepo{findErr: apperr.New(apperr.CodeInternal, "secret db detail")}
+	svc := app.NewService(app.ServiceDeps{Repo: repo, IDs: memory.NewIDGenerator(domain.TaskIDPrefix)})
+	mux := newTestMux(api.NewHandler(svc))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/task-1/done", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret db detail") {
+		t.Fatalf("5xx 响应不应泄露内部错误细节: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "internal error") {
+		t.Fatalf("5xx 响应应返回通用文案: %s", rec.Body.String())
+	}
+}
+
+// TestDeleteTaskHTTPInternalErrorHidesDetail 覆盖 Delete 5xx 不泄露内部错误细节。
+func TestDeleteTaskHTTPInternalErrorHidesDetail(t *testing.T) {
+	svc := app.NewService(app.ServiceDeps{Repo: failingRepo{}, IDs: memory.NewIDGenerator(domain.TaskIDPrefix)})
+	mux := newTestMux(api.NewHandler(svc))
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/task-1", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "secret db detail") {
+		t.Fatalf("5xx 响应不应泄露内部错误细节: %s", rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "internal error") {
+		t.Fatalf("5xx 响应应返回通用文案: %s", rec.Body.String())
 	}
 }

@@ -19,6 +19,8 @@ const (
 	TaskIDPrefix = "task-"
 	// TaskNotFoundMessage 是任务不存在的稳定用户文案。
 	TaskNotFoundMessage = "task not found"
+	// TaskIDRequiredMessage 是任务 ID 必填的稳定用户文案。
+	TaskIDRequiredMessage = "id is required"
 )
 
 // Task 是个人任务的领域实体。
@@ -37,7 +39,7 @@ type Task struct {
 func NewTask(id, title string, createdAt time.Time) (Task, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return Task{}, apperr.New(apperr.CodeInvalidArgument, "id is required")
+		return Task{}, apperr.New(apperr.CodeInvalidArgument, TaskIDRequiredMessage)
 	}
 	title, err := ValidateTitle(title)
 	if err != nil {
@@ -70,7 +72,7 @@ func (t *Task) MarkDone() {
 func ValidateID(id string) (string, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return "", apperr.New(apperr.CodeInvalidArgument, "id is required")
+		return "", apperr.New(apperr.CodeInvalidArgument, TaskIDRequiredMessage)
 	}
 	if utf8.RuneCountInString(id) > MaxTaskIDLength {
 		return "", apperr.New(apperr.CodeInvalidArgument, "id too long")

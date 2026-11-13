@@ -54,7 +54,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateTask) (domain.Task, erro
 	}
 	task, err := domain.NewTask(id, title, time.Now())
 	if err != nil {
-		return domain.Task{}, err
+		return domain.Task{}, apperr.Wrapf(err, "create task: construct task")
 	}
 	if err := s.repo.Save(ctx, task); err != nil {
 		return domain.Task{}, apperr.Wrapf(err, "save task failed")

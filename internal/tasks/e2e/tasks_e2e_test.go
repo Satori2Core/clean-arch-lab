@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	tasksBase   = "/api/v1/tasks"
+	// tasksBase 是 tasks 接口基础路径。
+	tasksBase = "/api/v1/tasks"
+	// healthzPath 是健康检查路径。
 	healthzPath = "/healthz"
 )
 
