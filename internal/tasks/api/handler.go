@@ -25,6 +25,8 @@ const (
 	routeListTasks = "GET /api/v1/tasks"
 	// routeMarkTaskDone 是标记任务完成路由。
 	routeMarkTaskDone = "POST /api/v1/tasks/{id}/done"
+	// routeDeleteTask 是删除任务路由。
+	routeDeleteTask = "DELETE /api/v1/tasks/{id}"
 
 	// maxRequestBodyBytes 是创建任务请求体大小上限（1MB）。
 	maxRequestBodyBytes = 1 << 20
@@ -109,6 +111,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(routeCreateTask, h.create)
 	mux.HandleFunc(routeListTasks, h.list)
 	mux.HandleFunc(routeMarkTaskDone, h.markDone)
+	mux.HandleFunc(routeDeleteTask, h.delete)
 }
 
 // createTaskRequest 是创建任务请求体。
@@ -180,6 +183,16 @@ func (h *Handler) markDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, r, http.StatusOK, toResponse(task))
+}
+
+// delete 处理删除任务请求，成功返回 204 无响应体。
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := h.svc.Delete(r.Context(), id); err != nil {
+		writeError(w, r, err, statusFromErr(err))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // toResponse 将领域 Task 转换为 HTTP 响应结构。

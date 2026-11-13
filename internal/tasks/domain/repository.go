@@ -11,6 +11,8 @@ type Repository interface {
 	FindByID(ctx context.Context, id string) (Task, error)
 	// List 返回任务列表。
 	List(ctx context.Context) ([]Task, error)
+	// Delete 按 ID 删除任务，不存在时返回 NOT_FOUND。
+	Delete(ctx context.Context, id string) error
 }
 
 // IDGenerator 是 ID 生成端口（Port），隔离具体 ID 生成方案。

@@ -118,3 +118,31 @@ func TestRepositoryListEmpty(t *testing.T) {
 		t.Fatalf("List() = %#v, want 非 nil 空切片", tasks)
 	}
 }
+
+// TestRepositoryDeleteSuccess 验证删除后任务不存在。
+func TestRepositoryDeleteSuccess(t *testing.T) {
+	repo := memory.NewRepository()
+	if err := repo.Save(context.Background(), newTask("task-1", "a")); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	if err := repo.Delete(context.Background(), "task-1"); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+	if _, err := repo.FindByID(context.Background(), "task-1"); err == nil {
+		t.Fatal("FindByID() error = nil, want NOT_FOUND")
+	}
+}
+
+// TestRepositoryDeleteNotFound 验证删除不存在任务返回 NOT_FOUND。
+func TestRepositoryDeleteNotFound(t *testing.T) {
+	repo := memory.NewRepository()
+	err := repo.Delete(context.Background(), "missing")
+	if err == nil {
+		t.Fatal("Delete() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeNotFound {
+		t.Fatalf("err = %v, want NOT_FOUND", err)
+	}
+}

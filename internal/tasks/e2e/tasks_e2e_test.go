@@ -170,3 +170,36 @@ func TestE2ETaskC08MarkDoneNotFound(t *testing.T) {
 		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
 	}
 }
+
+// TestE2ETaskC09DeleteTask 覆盖 C09：删除任务成功返回 204。
+func TestE2ETaskC09DeleteTask(t *testing.T) {
+	env := harness.NewEnv()
+	createRec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": "a"})
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201; body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	env.Decode(t, createRec, &created)
+
+	rec := env.DoJSON(t, http.MethodDelete, tasksBase+"/"+created.ID, nil)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestE2ETaskC10DeleteNotFound 覆盖 C10：删除不存在的任务返回 404 与 NOT_FOUND。
+func TestE2ETaskC10DeleteNotFound(t *testing.T) {
+	env := harness.NewEnv()
+	rec := env.DoJSON(t, http.MethodDelete, tasksBase+"/missing", nil)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	env.Decode(t, rec, &resp)
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
+	}
+}

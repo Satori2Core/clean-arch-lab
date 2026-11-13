@@ -24,11 +24,12 @@ func assertInvalidArgument(t *testing.T, err error) {
 	}
 }
 
-// fakeRepo 是测试用内存仓储，可注入 Save/List 错误。
+// fakeRepo 是测试用内存仓储，可注入 Save/List/Delete 错误。
 type fakeRepo struct {
-	tasks   []domain.Task
-	saveErr error
-	listErr error
+	tasks     []domain.Task
+	saveErr   error
+	listErr   error
+	deleteErr error
 }
 
 // Save 保存任务（按 ID 覆盖）；注入 saveErr 时返回错误。
@@ -62,6 +63,20 @@ func (f *fakeRepo) List(_ context.Context) ([]domain.Task, error) {
 		return nil, f.listErr
 	}
 	return f.tasks, nil
+}
+
+// Delete 删除任务；注入 deleteErr 时返回错误。
+func (f *fakeRepo) Delete(_ context.Context, id string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	for i := range f.tasks {
+		if f.tasks[i].ID == id {
+			f.tasks = append(f.tasks[:i], f.tasks[i+1:]...)
+			return nil
+		}
+	}
+	return apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
 }
 
 // fakeIDGen 是测试用 ID 生成器，可注入错误。
@@ -299,6 +314,60 @@ func TestMarkDoneSaveError(t *testing.T) {
 	_, err = svc.MarkDone(context.Background(), created.ID)
 	if err == nil {
 		t.Fatal("MarkDone() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {
+		t.Fatalf("err = %v, want INTERNAL", err)
+	}
+}
+
+// TestDeleteSuccess 验证删除任务成功。
+func TestDeleteSuccess(t *testing.T) {
+	svc, _ := newTestService()
+	created, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := svc.Delete(context.Background(), created.ID); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+}
+
+// TestDeleteNotFound 验证删除不存在的任务返回 NOT_FOUND。
+func TestDeleteNotFound(t *testing.T) {
+	svc, _ := newTestService()
+
+	err := svc.Delete(context.Background(), "missing")
+	if err == nil {
+		t.Fatal("Delete() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeNotFound {
+		t.Fatalf("err = %v, want NOT_FOUND", err)
+	}
+}
+
+// TestDeleteRejectsInvalidID 验证空 ID/超长 ID 返回 INVALID_ARGUMENT。
+func TestDeleteRejectsInvalidID(t *testing.T) {
+	svc, _ := newTestService()
+
+	err := svc.Delete(context.Background(), "  ")
+	assertInvalidArgument(t, err)
+
+	longID := strings.Repeat("a", domain.MaxTaskIDLength+1)
+	err = svc.Delete(context.Background(), longID)
+	assertInvalidArgument(t, err)
+}
+
+// TestDeleteRepoError 验证仓储 Delete 失败时返回错误且业务码为 INTERNAL。
+func TestDeleteRepoError(t *testing.T) {
+	svc, repo := newTestService()
+	repo.deleteErr = errors.New("db down")
+
+	err := svc.Delete(context.Background(), "any")
+	if err == nil {
+		t.Fatal("Delete() error = nil, want error")
 	}
 	var ae *apperr.Error
 	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {

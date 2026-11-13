@@ -49,6 +49,11 @@ func (failingRepo) List(context.Context) ([]domain.Task, error) {
 	return nil, apperr.New(apperr.CodeInternal, "secret db detail")
 }
 
+// Delete 返回带敏感细节的内部错误。
+func (failingRepo) Delete(context.Context, string) error {
+	return apperr.New(apperr.CodeInternal, "secret db detail")
+}
+
 // TestCreateTaskHTTPInvalidJSON 覆盖非法 JSON 返回 400 与 INVALID_ARGUMENT。
 func TestCreateTaskHTTPInvalidJSON(t *testing.T) {
 	mux := newTestMux(newTestHandler())
@@ -367,6 +372,48 @@ func TestMarkTaskDoneHTTP(t *testing.T) {
 func TestMarkTaskDoneHTTPNotFound(t *testing.T) {
 	mux := newTestMux(newTestHandler())
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/missing/done", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
+	}
+}
+
+// TestDeleteTaskHTTP 覆盖删除任务成功返回 204。
+func TestDeleteTaskHTTP(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewBufferString(`{"title":"a"}`))
+	createRec := httptest.NewRecorder()
+	mux.ServeHTTP(createRec, createReq)
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("unmarshal create error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.ID, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestDeleteTaskHTTPNotFound 覆盖删除不存在的任务返回 404 与 NOT_FOUND。
+func TestDeleteTaskHTTPNotFound(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/missing", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 

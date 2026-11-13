@@ -10,6 +10,7 @@
 | POST | `/api/v1/tasks` | 创建任务 |
 | GET | `/api/v1/tasks` | 查询任务列表 |
 | POST | `/api/v1/tasks/{id}/done` | 标记任务完成 |
+| DELETE | `/api/v1/tasks/{id}` | 删除任务 |
 
 ## GET /healthz
 
@@ -84,6 +85,23 @@ ok
   "created_at": "2026-01-15T00:00:00+08:00"
 }
 ```
+
+### 错误
+
+| HTTP | code | 场景 |
+|------|------|------|
+| 404 | `NOT_FOUND` | 任务不存在 |
+| 500 | `INTERNAL` | 内部错误 |
+
+## DELETE /api/v1/tasks/{id}
+
+### 请求
+
+无请求体。`id` 为任务 ID。
+
+### 成功响应（204）
+
+无响应体。
 
 ### 错误
 

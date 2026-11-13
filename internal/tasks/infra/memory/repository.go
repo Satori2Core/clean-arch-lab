@@ -57,6 +57,17 @@ func (r *Repository) List(_ context.Context) ([]domain.Task, error) {
 	return tasks, nil
 }
 
+// Delete 按 ID 删除任务；不存在时返回 NOT_FOUND。
+func (r *Repository) Delete(_ context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.tasks[id]; !ok {
+		return apperr.New(apperr.CodeNotFound, domain.TaskNotFoundMessage)
+	}
+	delete(r.tasks, id)
+	return nil
+}
+
 // IDGenerator 是自增 ID 生成器实现（练手用，真实场景用 idgen/雪花等）。
 type IDGenerator struct {
 	prefix  string

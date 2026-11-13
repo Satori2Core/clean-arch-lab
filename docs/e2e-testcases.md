@@ -12,3 +12,5 @@
 | E2E-TASK-C06 | 健康检查 | 200，返回 ok |
 | E2E-TASK-C07 | 标记任务完成 | 200，done=true |
 | E2E-TASK-C08 | 标记不存在的任务 | 404，NOT_FOUND |
+| E2E-TASK-C09 | 删除任务成功 | 204，无响应体 |
+| E2E-TASK-C10 | 删除不存在的任务 | 404，NOT_FOUND |

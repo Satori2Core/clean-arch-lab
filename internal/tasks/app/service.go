@@ -90,3 +90,15 @@ func (s *Service) MarkDone(ctx context.Context, id string) (domain.Task, error) 
 	}
 	return task, nil
 }
+
+// Delete 删除任务：校验并规范化 ID 后按 ID 删除，不存在时返回 NOT_FOUND。
+func (s *Service) Delete(ctx context.Context, id string) error {
+	id, err := domain.ValidateID(id)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return apperr.Wrapf(err, "delete task failed, id=%s", id)
+	}
+	return nil
+}
