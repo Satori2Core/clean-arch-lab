@@ -14,3 +14,5 @@
 | E2E-TASK-C08 | 标记不存在的任务 | 404，NOT_FOUND |
 | E2E-TASK-C09 | 删除任务成功 | 204，无响应体 |
 | E2E-TASK-C10 | 删除不存在的任务 | 404，NOT_FOUND |
+| E2E-TASK-C11 | 查询任务详情成功 | 200，返回 id/title/done/created_at |
+| E2E-TASK-C12 | 查询不存在的任务 | 404，NOT_FOUND |

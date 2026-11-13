@@ -23,6 +23,8 @@ const (
 	routeCreateTask = "POST /api/v1/tasks"
 	// routeListTasks 是查询任务列表路由。
 	routeListTasks = "GET /api/v1/tasks"
+	// routeGetTask 是查询任务详情路由。
+	routeGetTask = "GET /api/v1/tasks/{id}"
 	// routeMarkTaskDone 是标记任务完成路由。
 	routeMarkTaskDone = "POST /api/v1/tasks/{id}/done"
 	// routeDeleteTask 是删除任务路由。
@@ -110,6 +112,7 @@ func NewHandler(svc *app.Service) *Handler {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc(routeCreateTask, h.create)
 	mux.HandleFunc(routeListTasks, h.list)
+	mux.HandleFunc(routeGetTask, h.getByID)
 	mux.HandleFunc(routeMarkTaskDone, h.markDone)
 	mux.HandleFunc(routeDeleteTask, h.delete)
 }
@@ -172,6 +175,17 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		resp = append(resp, toResponse(task))
 	}
 	writeJSON(w, r, http.StatusOK, resp)
+}
+
+// getByID 处理查询任务详情请求。
+func (h *Handler) getByID(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	task, err := h.svc.GetByID(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err, statusFromErr(err))
+		return
+	}
+	writeJSON(w, r, http.StatusOK, toResponse(task))
 }
 
 // markDone 处理标记任务完成请求。

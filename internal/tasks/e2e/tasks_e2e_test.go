@@ -212,3 +212,46 @@ func TestE2ETaskC10DeleteNotFound(t *testing.T) {
 		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
 	}
 }
+
+// TestE2ETaskC11GetByID 覆盖 C11：查询任务详情成功返回 200。
+func TestE2ETaskC11GetByID(t *testing.T) {
+	env := harness.NewEnv()
+	createRec := env.DoJSON(t, http.MethodPost, tasksBase, map[string]any{"title": "a"})
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want 201; body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	env.Decode(t, createRec, &created)
+
+	rec := env.DoJSON(t, http.MethodGet, tasksBase+"/"+created.ID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		Done      bool   `json:"done"`
+		CreatedAt string `json:"created_at"`
+	}
+	env.Decode(t, rec, &resp)
+	if resp.ID != created.ID || resp.Title != "a" || resp.Done || resp.CreatedAt == "" {
+		t.Fatalf("resp = %+v", resp)
+	}
+}
+
+// TestE2ETaskC12GetByIDNotFound 覆盖 C12：查询不存在任务返回 404 与 NOT_FOUND。
+func TestE2ETaskC12GetByIDNotFound(t *testing.T) {
+	env := harness.NewEnv()
+	rec := env.DoJSON(t, http.MethodGet, tasksBase+"/missing", nil)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	env.Decode(t, rec, &resp)
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
+	}
+}

@@ -469,3 +469,74 @@ func TestDeleteTaskHTTPInvalidID(t *testing.T) {
 		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeInvalidArgument)
 	}
 }
+
+// TestGetTaskHTTPC11 覆盖查询任务详情成功返回 200。
+func TestGetTaskHTTPC11(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewBufferString(`{"title":"a"}`))
+	createRec := httptest.NewRecorder()
+	mux.ServeHTTP(createRec, createReq)
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("unmarshal create error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/"+created.ID, nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response error = %v", err)
+	}
+	if resp.ID != created.ID || resp.Title != "a" {
+		t.Fatalf("resp = %+v", resp)
+	}
+}
+
+// TestGetTaskHTTPC12NotFound 覆盖查询不存在的任务返回 404 与 NOT_FOUND。
+func TestGetTaskHTTPC12NotFound(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/missing", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeNotFound {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeNotFound)
+	}
+}
+
+// TestGetTaskHTTPInvalidID 覆盖非法 ID 返回 400 与 INVALID_ARGUMENT。
+func TestGetTaskHTTPInvalidID(t *testing.T) {
+	mux := newTestMux(newTestHandler())
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/%20%20", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal error = %v", err)
+	}
+	if resp["code"] != apperr.CodeInvalidArgument {
+		t.Fatalf("code = %v, want %s", resp["code"], apperr.CodeInvalidArgument)
+	}
+}

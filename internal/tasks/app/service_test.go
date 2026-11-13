@@ -393,3 +393,61 @@ func TestMarkDoneFindError(t *testing.T) {
 		t.Fatalf("err = %v, want INTERNAL", err)
 	}
 }
+
+// TestGetByIDSuccess 验证按 ID 查询任务成功。
+func TestGetByIDSuccess(t *testing.T) {
+	svc, _ := newTestService()
+	created, err := svc.Create(context.Background(), app.CreateTask{Title: "a"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	got, err := svc.GetByID(context.Background(), created.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if got.ID != created.ID || got.Title != created.Title {
+		t.Fatalf("got = %+v, want id=%s title=%s", got, created.ID, created.Title)
+	}
+}
+
+// TestGetByIDNotFound 验证查询不存在的任务返回 NOT_FOUND。
+func TestGetByIDNotFound(t *testing.T) {
+	svc, _ := newTestService()
+
+	_, err := svc.GetByID(context.Background(), "missing")
+	if err == nil {
+		t.Fatal("GetByID() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeNotFound {
+		t.Fatalf("err = %v, want NOT_FOUND", err)
+	}
+}
+
+// TestGetByIDRejectsInvalidID 验证空 ID/超长 ID 返回 INVALID_ARGUMENT。
+func TestGetByIDRejectsInvalidID(t *testing.T) {
+	svc, _ := newTestService()
+
+	_, err := svc.GetByID(context.Background(), "  ")
+	assertInvalidArgument(t, err)
+
+	longID := strings.Repeat("a", domain.MaxTaskIDLength+1)
+	_, err = svc.GetByID(context.Background(), longID)
+	assertInvalidArgument(t, err)
+}
+
+// TestGetByIDFindError 验证 GetByID 仓储 FindByID 失败时返回错误且业务码为 INTERNAL。
+func TestGetByIDFindError(t *testing.T) {
+	svc, repo := newTestService()
+	repo.findErr = errors.New("db down")
+
+	_, err := svc.GetByID(context.Background(), "task-1")
+	if err == nil {
+		t.Fatal("GetByID() error = nil, want error")
+	}
+	var ae *apperr.Error
+	if !errors.As(err, &ae) || ae.Code != apperr.CodeInternal {
+		t.Fatalf("err = %v, want INTERNAL", err)
+	}
+}

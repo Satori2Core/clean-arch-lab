@@ -74,6 +74,19 @@ func (s *Service) List(ctx context.Context) ([]domain.Task, error) {
 	return tasks, nil
 }
 
+// GetByID 按 ID 查询任务详情：校验并规范化 ID → 按 ID 查询，不存在时返回 NOT_FOUND。
+func (s *Service) GetByID(ctx context.Context, id string) (domain.Task, error) {
+	id, err := domain.ValidateID(id)
+	if err != nil {
+		return domain.Task{}, apperr.Wrapf(err, "get task: validate id")
+	}
+	task, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return domain.Task{}, apperr.Wrapf(err, "find task failed, id=%s", id)
+	}
+	return task, nil
+}
+
 // MarkDone 标记任务为已完成：校验并规范化 ID → 按 ID 查询 → 领域置为完成 → 持久化。
 func (s *Service) MarkDone(ctx context.Context, id string) (domain.Task, error) {
 	id, err := domain.ValidateID(id)
